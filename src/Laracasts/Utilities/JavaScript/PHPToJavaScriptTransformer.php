@@ -2,7 +2,8 @@
 
 use Exception;
 
-class PHPToJavaScriptTransformer {
+class PHPToJavaScriptTransformer
+{
 
     /**
      * Namespace to nest JS vars under
@@ -22,17 +23,23 @@ class PHPToJavaScriptTransformer {
      * @var array
      */
     protected $types = [
-        'String', 'Array', 'Object', 'Numeric', 'Boolean', 'Null'
+        'Regexp',
+        'String',
+        'Array',
+        'Object',
+        'Numeric',
+        'Boolean',
+        'Null',
     ];
 
     /**
      * @param ViewBinder $viewBinder
-     * @param string $namespace
+     * @param string     $namespace
      */
     function __construct(ViewBinder $viewBinder, $namespace = 'window')
     {
         $this->viewBinder = $viewBinder;
-        $this->namespace = $namespace;
+        $this->namespace  = $namespace;
     }
 
     /**
@@ -107,11 +114,33 @@ class PHPToJavaScriptTransformer {
     {
         // For every kind of type, let's see
         // if it needs to be transformed for JS
-        foreach ($this->types as $transformer)
-        {
+        foreach ($this->types as $transformer) {
             $js = $this->{"transform{$transformer}"}($value);
 
-            if ( ! is_null($js)) return $js;
+            if (!is_null($js)) {
+                return $js;
+            }
+        }
+    }
+
+    function isRegularExpression($string)
+    {
+        set_error_handler(function () {
+        }, E_WARNING);
+        $isRegularExpression = preg_match($string, "") !== false;
+        restore_error_handler();
+
+        return $isRegularExpression;
+    }
+
+    /**
+     * @param $value
+     * @return string
+     */
+    protected function transformRegexp($value)
+    {
+        if ($this->isRegularExpression($value)) {
+            return $value;
         }
     }
 
@@ -121,8 +150,7 @@ class PHPToJavaScriptTransformer {
      */
     protected function transformString($value)
     {
-        if (is_string($value))
-        {
+        if (is_string($value)) {
             return "'{$this->escape($value)}'";
         }
     }
@@ -133,8 +161,7 @@ class PHPToJavaScriptTransformer {
      */
     protected function transformArray($value)
     {
-        if (is_array($value))
-        {
+        if (is_array($value)) {
             return json_encode($value);
         }
     }
@@ -145,8 +172,7 @@ class PHPToJavaScriptTransformer {
      */
     protected function transformNumeric($value)
     {
-        if (is_numeric($value))
-        {
+        if (is_numeric($value)) {
             return $value;
         }
     }
@@ -157,8 +183,7 @@ class PHPToJavaScriptTransformer {
      */
     protected function transformBoolean($value)
     {
-        if (is_bool($value))
-        {
+        if (is_bool($value)) {
             return $value ? 'true' : 'false';
         }
     }
@@ -170,31 +195,30 @@ class PHPToJavaScriptTransformer {
      */
     protected function transformObject($value)
     {
-        if (is_object($value))
-        {
+        if (is_object($value)) {
             // If a toJson() method exists, we'll assume that
             // the object can cast itself automatically
-            if (method_exists($value, 'toJson')) return $value;
+            if (method_exists($value, 'toJson')) {
+                return $value;
+            }
 
             // Otherwise, if the object doesn't even have
             // a toString method, we can't proceed.
-            if ( ! method_exists($value, '__toString'))
-            {
+            if (!method_exists($value, '__toString')) {
                 throw new Exception('The provided object needs a __toString() method.');
             }
 
             return "'{$value}'";
         }
     }
-    
+
     /**
      * @param $value
      * @return string
      */
     protected function transformNull($value)
     {
-        if (is_null($value))
-        {
+        if (is_null($value)) {
             return 'null';
         }
     }
